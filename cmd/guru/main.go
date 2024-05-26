@@ -20,5 +20,10 @@ func main() {
 	e.GET("/", func(c echo.Context) error {
 		return c.String(http.StatusOK, "Hello from go-guru!")
 	})
+
+	e.POST("/github/events", func(c echo.Context) error {
+		return c.String(http.StatusOK, "Pong!")
+	})
+
 	e.Logger.Fatal(e.Start(":" + port))
 }
