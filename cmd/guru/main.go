@@ -3,10 +3,13 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"log"
+	"log/slog"
 	"net/http"
 	"os"
 
+	"github.com/cbrgm/githubevents/githubevents"
 	echo "github.com/labstack/echo/v4"
 	"github.com/labstack/echo/v4/middleware"
 )
@@ -15,6 +18,7 @@ var (
 	port              = os.Getenv("PORT")
 	applicationID     = os.Getenv("GITHUB_APP_ID")
 	appPrivateKeyPath = os.Getenv("GITHUB_APP_PRIVATE_KEY_PATH")
+	webhookSecretKey  = os.Getenv("GITHUB_WEBHOOK_SECRET")
 )
 
 func main() {
@@ -30,16 +34,18 @@ func main() {
 	_ = loadPrivateKey(appPrivateKeyPath)
 
 	e := echo.New()
-
-	e.Use(middleware.Logger())
 	e.Use(middleware.Recover())
 
-	e.GET("/", func(c echo.Context) error {
-		return c.String(http.StatusOK, "Hello from go-guru!")
-	})
+	logger := slog.Default()
+
+	handle := githubevents.New(webhookSecretKey)
 
 	e.POST("/github/event", func(c echo.Context) error {
-		return c.String(http.StatusOK, "Pong!")
+		if err := handle.HandleEventRequest(c.Request()); err != nil {
+			logger.Error("Error handling event request: %v", err)
+			return c.String(http.StatusInternalServerError, fmt.Sprintf("Error handling event request: %v", err))
+		}
+		return c.String(http.StatusOK, "")
 	})
 
 	e.Logger.Fatal(e.Start(":" + port))
