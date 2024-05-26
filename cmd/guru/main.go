@@ -10,6 +10,7 @@ import (
 	"os"
 
 	"github.com/cbrgm/githubevents/githubevents"
+	"github.com/google/go-github/v62/github"
 	echo "github.com/labstack/echo/v4"
 	"github.com/labstack/echo/v4/middleware"
 )
@@ -38,10 +39,18 @@ func main() {
 
 	logger := slog.Default()
 
-	handle := githubevents.New(webhookSecretKey)
+	whHandler := githubevents.New(webhookSecretKey)
+
+	whHandler.OnPullRequestEventReadyForReview(
+		func(deliveryID, eventName string, event *github.PullRequestEvent) error {
+			logger.Info("Received pull request event %s with delivery ID %s", eventName, deliveryID)
+			return nil
+		},
+	)
 
 	e.POST("/github/event", func(c echo.Context) error {
-		if err := handle.HandleEventRequest(c.Request()); err != nil {
+		logger.Info("Received event request")
+		if err := whHandler.HandleEventRequest(c.Request()); err != nil {
 			logger.Error("Error handling event request: %v", err)
 			return c.String(http.StatusInternalServerError, fmt.Sprintf("Error handling event request: %v", err))
 		}
