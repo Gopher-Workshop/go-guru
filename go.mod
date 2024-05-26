@@ -1,8 +1,11 @@
-module github.com/Gopher-Workshop/go-guru
+module github.com/Gopher-Workshop/guru
 
 go 1.22
 
-require github.com/labstack/echo/v4 v4.12.0
+require (
+	github.com/labstack/echo/v4 v4.12.0
+	golang.org/x/oauth2 v0.20.0
+)
 
 require (
 	github.com/labstack/gommon v0.4.2 // indirect
