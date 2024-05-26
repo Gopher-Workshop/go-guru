@@ -33,7 +33,7 @@ func main() {
 		return c.String(http.StatusOK, "Hello from go-guru!")
 	})
 
-	e.POST("/github/events", func(c echo.Context) error {
+	e.POST("/github/event", func(c echo.Context) error {
 		return c.String(http.StatusOK, "Pong!")
 	})
 
