@@ -52,10 +52,10 @@ func (t *ApplicationToken) Token() (string, error) {
 	now := time.Now()
 	expiresAt := now.Add(10 * time.Minute)
 
-	token := jwt.NewWithClaims(jwt.SigningMethodRS256, jwt.MapClaims{
-		"iat": jwt.NewNumericDate(now),
-		"exp": jwt.NewNumericDate(expiresAt),
-		"iss": t.appID,
+	token := jwt.NewWithClaims(jwt.SigningMethodRS256, jwt.RegisteredClaims{
+		IssuedAt:  jwt.NewNumericDate(now),
+		ExpiresAt: jwt.NewNumericDate(expiresAt),
+		Issuer:    t.appID,
 	})
 
 	return token.SignedString(t.privateKey)
