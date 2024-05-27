@@ -23,14 +23,14 @@ const (
 
 // ApplicationToken represents a GitHub App token.
 type ApplicationToken struct {
-	ApplicationID string
-	privateKey    *rsa.PrivateKey
+	appID      string
+	privateKey *rsa.PrivateKey
 }
 
 // NewApplicationToken creates a new GitHub App token.
 // An application token is used to authenticate as a GitHub App.
-func NewApplicationToken(applicationID string, privateKey []byte) (*ApplicationToken, error) {
-	if applicationID == "" {
+func NewApplicationToken(appID string, privateKey []byte) (*ApplicationToken, error) {
+	if appID == "" {
 		return nil, errors.New("applicationID is required")
 	}
 
@@ -40,8 +40,8 @@ func NewApplicationToken(applicationID string, privateKey []byte) (*ApplicationT
 	}
 
 	return &ApplicationToken{
-		ApplicationID: applicationID,
-		privateKey:    privKey,
+		appID:      appID,
+		privateKey: privKey,
 	}, nil
 }
 
@@ -55,7 +55,7 @@ func (t *ApplicationToken) Token() (string, error) {
 	token := jwt.NewWithClaims(jwt.SigningMethodRS256, jwt.MapClaims{
 		"iat": jwt.NewNumericDate(now),
 		"exp": jwt.NewNumericDate(expiresAt),
-		"iss": t.ApplicationID,
+		"iss": t.appID,
 	})
 
 	return token.SignedString(t.privateKey)
