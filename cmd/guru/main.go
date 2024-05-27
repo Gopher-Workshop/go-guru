@@ -37,23 +37,33 @@ func main() {
 	e := echo.New()
 	e.Use(middleware.Recover())
 
-	logger := slog.Default()
+	logger := slog.New(slog.NewJSONHandler(os.Stdout, nil))
 
 	whHandler := githubevents.New(webhookSecretKey)
 
-	whHandler.OnPullRequestEventReadyForReview(
+	whHandler.OnPullRequestEventOpened(
 		func(deliveryID, eventName string, event *github.PullRequestEvent) error {
-			logger.Info("Received pull request event %s with delivery ID %s", eventName, deliveryID)
+			logger.With(
+				slog.String("delivery_id", deliveryID),
+				slog.String("event_name", eventName),
+			).Info("Received pull request event")
 			return nil
 		},
 	)
 
 	e.POST("/github/event", func(c echo.Context) error {
-		logger.Info("Received event request")
+		eventLogger := logger.WithGroup("github").With(
+			slog.String("event", c.Request().Header.Get("X-GitHub-Event")),
+			slog.String("delivery_id", c.Request().Header.Get("X-GitHub-Delivery")),
+		)
+
+		eventLogger.Info("Received GitHub event")
+
 		if err := whHandler.HandleEventRequest(c.Request()); err != nil {
-			logger.Error("Error handling event request: %v", err)
+			eventLogger.With(slog.Any("error", err)).Error("Error handling event request")
 			return c.String(http.StatusInternalServerError, fmt.Sprintf("Error handling event request: %v", err))
 		}
+
 		return c.String(http.StatusOK, "")
 	})
 
