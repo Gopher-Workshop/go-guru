@@ -8,7 +8,7 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/golang-jwt/jwt"
+	jwt "github.com/golang-jwt/jwt/v4"
 )
 
 // ApplicationToken represents a GitHub App token.
@@ -21,7 +21,7 @@ type ApplicationToken struct {
 
 // Expired returns true if the token is expired.
 func (t *ApplicationToken) Expired() bool {
-	return t.expiresAt.Before(time.Now())
+	return t.token == "" || t.expiresAt.Before(time.Now())
 }
 
 // Token returns the string representation of the token.
@@ -33,8 +33,8 @@ func (t *ApplicationToken) Token() (string, error) {
 		return "", errors.New("PrivateKey is required")
 	}
 
-	if t.token == "" || t.Expired() {
-		if err := t.generate(); err != nil {
+	if t.Expired() {
+		if err := t.refresh(); err != nil {
 			return "", err
 		}
 	}
@@ -43,7 +43,7 @@ func (t *ApplicationToken) Token() (string, error) {
 
 }
 
-func (t *ApplicationToken) generate() error {
+func (t *ApplicationToken) refresh() error {
 	now := time.Now()
 
 	t.expiresAt = now.Add(10 * time.Minute)
@@ -65,16 +65,15 @@ func (t *ApplicationToken) generate() error {
 
 // InstallationToken represents a GitHub App installation token.
 type InstallationToken struct {
-	*ApplicationToken
-
-	InstallationID int64
-	expiresAt      time.Time
-	token          string
+	ApplicationToken *ApplicationToken
+	InstallationID   int64
+	expiresAt        time.Time
+	token            string
 }
 
 // Expired returns true if the token is expired.
 func (t *InstallationToken) Expired() bool {
-	return t.expiresAt.Before(time.Now())
+	return t.token == "" || t.expiresAt.Before(time.Now())
 }
 
 // Token generates a new GitHub installation token.
@@ -86,8 +85,8 @@ func (t *InstallationToken) Token() (string, error) {
 		return "", errors.New("ApplicationToken is required")
 	}
 
-	if t.token == "" || t.Expired() {
-		if err := t.retrieve(); err != nil {
+	if t.Expired() {
+		if err := t.refresh(); err != nil {
 			return "", err
 		}
 	}
@@ -95,7 +94,7 @@ func (t *InstallationToken) Token() (string, error) {
 	return t.token, nil
 }
 
-func (t *InstallationToken) retrieve() error {
+func (t *InstallationToken) refresh() error {
 	appToken, err := t.ApplicationToken.Token()
 	if err != nil {
 		return err

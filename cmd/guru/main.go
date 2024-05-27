@@ -11,6 +11,7 @@ import (
 	"strconv"
 
 	githubguru "github.com/Gopher-Workshop/guru/internal/github"
+	githubpkg "github.com/Gopher-Workshop/guru/pkg/github"
 	"github.com/cbrgm/githubevents/githubevents"
 	"github.com/google/go-github/v62/github"
 	echo "github.com/labstack/echo/v4"
@@ -45,7 +46,7 @@ func main() {
 
 	openedHandler := &githubguru.PullRequestOpenedEvent{
 		Logger: logger.WithGroup("github.PullRequestEvent.opened"),
-		AppToken: &githubguru.ApplicationToken{
+		AppToken: &githubpkg.ApplicationToken{
 			ApplicationID: appID,
 			PrivateKey:    loadPrivateKey(appPrivateKeyPath),
 		},

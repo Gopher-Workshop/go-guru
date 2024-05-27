@@ -4,12 +4,13 @@ go 1.22.3
 
 require (
 	github.com/cbrgm/githubevents v1.15.0
-	github.com/golang-jwt/jwt v3.2.2+incompatible
+	github.com/golang-jwt/jwt/v4 v4.5.0
 	github.com/google/go-github/v62 v62.0.0
 	github.com/labstack/echo/v4 v4.12.0
 )
 
 require (
+	github.com/golang-jwt/jwt v3.2.2+incompatible // indirect
 	github.com/google/go-querystring v1.1.0 // indirect
 	github.com/labstack/gommon v0.4.2 // indirect
 	github.com/mattn/go-colorable v0.1.13 // indirect
