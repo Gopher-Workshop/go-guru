@@ -8,7 +8,6 @@ import (
 	"log/slog"
 	"net/http"
 	"os"
-	"strconv"
 
 	githubguru "github.com/Gopher-Workshop/guru/internal/github"
 	githubpkg "github.com/Gopher-Workshop/guru/pkg/github"
@@ -42,12 +41,10 @@ func main() {
 
 	whHandler := githubevents.New(webhookSecretKey)
 
-	appID, _ := strconv.Atoi(applicationID)
-
 	openedHandler := &githubguru.PullRequestOpenedEvent{
 		Logger: logger.WithGroup("github.PullRequestEvent.opened"),
 		AppToken: &githubpkg.ApplicationToken{
-			ApplicationID: appID,
+			ApplicationID: applicationID,
 			PrivateKey:    loadPrivateKey(appPrivateKeyPath),
 		},
 	}

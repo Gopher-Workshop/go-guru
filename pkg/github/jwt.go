@@ -13,7 +13,7 @@ import (
 
 // ApplicationToken represents a GitHub App token.
 type ApplicationToken struct {
-	ApplicationID int
+	ApplicationID string
 	PrivateKey    []byte
 	expiresAt     time.Time
 	token         string
@@ -26,7 +26,7 @@ func (t *ApplicationToken) Expired() bool {
 
 // Token returns the string representation of the token.
 func (t *ApplicationToken) Token() (string, error) {
-	if t.ApplicationID == 0 {
+	if t.ApplicationID == "" {
 		return "", errors.New("ApplicationID is required")
 	}
 	if len(t.PrivateKey) == 0 {
