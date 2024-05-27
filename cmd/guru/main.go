@@ -39,14 +39,16 @@ func main() {
 
 	logger := slog.New(slog.NewJSONHandler(os.Stdout, nil))
 
+	githubAppToken, err := githubpkg.NewApplicationToken(applicationID, loadPrivateKey(appPrivateKeyPath))
+	if err != nil {
+		log.Fatalf("Error creating GitHub App token: %v", err)
+	}
+
 	whHandler := githubevents.New(webhookSecretKey)
 
 	openedHandler := &githubguru.PullRequestOpenedEvent{
-		Logger: logger.WithGroup("github.PullRequestEvent.opened"),
-		AppToken: &githubpkg.ApplicationToken{
-			ApplicationID: applicationID,
-			PrivateKey:    loadPrivateKey(appPrivateKeyPath),
-		},
+		Logger:   logger.WithGroup("github.PullRequestEvent.opened"),
+		AppToken: githubAppToken,
 	}
 
 	whHandler.OnPullRequestEventOpened(

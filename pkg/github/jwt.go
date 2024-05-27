@@ -4,6 +4,7 @@ package github
 import (
 	"bytes"
 	"context"
+	"crypto/rsa"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -23,57 +24,41 @@ const (
 // ApplicationToken represents a GitHub App token.
 type ApplicationToken struct {
 	ApplicationID string
-	PrivateKey    []byte
-	expiresAt     time.Time
-	token         string
-
-	mu sync.Mutex
+	privateKey    *rsa.PrivateKey
 }
 
-// IsExpired returns true if the token is expired.
-func (t *ApplicationToken) IsExpired() bool {
-	return t.token == "" || t.expiresAt.Before(time.Now())
+// NewApplicationToken creates a new GitHub App token.
+// An application token is used to authenticate as a GitHub App.
+func NewApplicationToken(applicationID string, privateKey []byte) (*ApplicationToken, error) {
+	if applicationID == "" {
+		return nil, errors.New("applicationID is required")
+	}
+
+	privKey, err := jwt.ParseRSAPrivateKeyFromPEM(privateKey)
+	if err != nil {
+		return nil, err
+	}
+
+	return &ApplicationToken{
+		ApplicationID: applicationID,
+		privateKey:    privKey,
+	}, nil
 }
 
-// Token returns the string representation of the token.
+// Token creates a new GitHub App token.
+// The token is used to authenticate as a GitHub App.
+// Each token is valid for 10 minutes.
 func (t *ApplicationToken) Token() (string, error) {
-	if t.ApplicationID == "" {
-		return "", errors.New("ApplicationID is required")
-	}
-	if len(t.PrivateKey) == 0 {
-		return "", errors.New("PrivateKey is required")
-	}
-
-	if t.IsExpired() {
-		if err := t.refresh(); err != nil {
-			return "", err
-		}
-	}
-
-	return t.token, nil
-
-}
-
-func (t *ApplicationToken) refresh() error {
-	t.mu.Lock()
-	defer t.mu.Unlock()
-
 	now := time.Now()
-	t.expiresAt = now.Add(10 * time.Minute)
+	expiresAt := now.Add(10 * time.Minute)
 
 	token := jwt.NewWithClaims(jwt.SigningMethodRS256, jwt.MapClaims{
 		"iat": jwt.NewNumericDate(now),
-		"exp": jwt.NewNumericDate(t.expiresAt),
+		"exp": jwt.NewNumericDate(expiresAt),
 		"iss": t.ApplicationID,
 	})
 
-	privKey, err := jwt.ParseRSAPrivateKeyFromPEM(t.PrivateKey)
-	if err != nil {
-		return err
-	}
-
-	t.token, err = token.SignedString(privKey)
-	return err
+	return token.SignedString(t.privateKey)
 }
 
 // InstallationAccessToken represents a GitHub App installation access token.
@@ -114,7 +99,7 @@ func (t *InstallationToken) Token(ctx context.Context) (string, error) {
 		}
 	}
 
-	return t.ApplicationToken.token, nil
+	return t.accessToken.Token, nil
 }
 
 func (t *InstallationToken) refresh(ctx context.Context) error {
