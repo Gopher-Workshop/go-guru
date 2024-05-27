@@ -8,7 +8,9 @@ import (
 	"log/slog"
 	"net/http"
 	"os"
+	"strconv"
 
+	githubguru "github.com/Gopher-Workshop/guru/internal/github"
 	"github.com/cbrgm/githubevents/githubevents"
 	"github.com/google/go-github/v62/github"
 	echo "github.com/labstack/echo/v4"
@@ -23,7 +25,7 @@ var (
 )
 
 func main() {
-	_ = context.Background()
+	ctx := context.Background()
 
 	if port == "" {
 		port = "8080"
@@ -32,8 +34,6 @@ func main() {
 		appPrivateKeyPath = "../../certs/private-key.pem"
 	}
 
-	_ = loadPrivateKey(appPrivateKeyPath)
-
 	e := echo.New()
 	e.Use(middleware.Recover())
 
@@ -41,13 +41,19 @@ func main() {
 
 	whHandler := githubevents.New(webhookSecretKey)
 
+	appID, _ := strconv.Atoi(applicationID)
+
+	openedHandler := &githubguru.PullRequestOpenedEvent{
+		Logger: logger.WithGroup("github.PullRequestEvent.opened"),
+		AppToken: &githubguru.ApplicationToken{
+			ApplicationID: appID,
+			PrivateKey:    loadPrivateKey(appPrivateKeyPath),
+		},
+	}
+
 	whHandler.OnPullRequestEventOpened(
-		func(deliveryID, eventName string, event *github.PullRequestEvent) error {
-			logger.With(
-				slog.String("delivery_id", deliveryID),
-				slog.String("event_name", eventName),
-			).Info("Received pull request event")
-			return nil
+		func(_, _ string, event *github.PullRequestEvent) error {
+			return openedHandler.Handle(ctx, event)
 		},
 	)
 

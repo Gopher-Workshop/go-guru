@@ -13,71 +13,101 @@ import (
 
 // ApplicationToken represents a GitHub App token.
 type ApplicationToken struct {
-	ApplicationID string
+	ApplicationID int
 	PrivateKey    []byte
-	ExpiresAt     time.Time
+	expiresAt     time.Time
+	token         string
 }
 
-// Generate generates a new GitHub App token.
-func (t *ApplicationToken) Generate() (string, error) {
-	if t.ApplicationID == "" {
+// Expired returns true if the token is expired.
+func (t *ApplicationToken) Expired() bool {
+	return t.expiresAt.Before(time.Now())
+}
+
+// Token returns the string representation of the token.
+func (t *ApplicationToken) Token() (string, error) {
+	if t.ApplicationID == 0 {
 		return "", errors.New("ApplicationID is required")
 	}
-
 	if len(t.PrivateKey) == 0 {
 		return "", errors.New("PrivateKey is required")
 	}
 
+	if t.token == "" || t.Expired() {
+		if err := t.generate(); err != nil {
+			return "", err
+		}
+	}
+
+	return t.token, nil
+
+}
+
+func (t *ApplicationToken) generate() error {
 	now := time.Now()
 
-	if t.ExpiresAt.IsZero() {
-		t.ExpiresAt = now.Add(10 * time.Minute)
-	}
+	t.expiresAt = now.Add(10 * time.Minute)
 
 	token := jwt.NewWithClaims(jwt.SigningMethodRS256, jwt.MapClaims{
 		"iat": now.Unix(),
-		"exp": t.ExpiresAt.Unix(),
+		"exp": t.expiresAt.Unix(),
 		"iss": t.ApplicationID,
 	})
 
 	privKey, err := jwt.ParseRSAPrivateKeyFromPEM(t.PrivateKey)
 	if err != nil {
-		return "", err
+		return err
 	}
 
-	tokenStr, err := token.SignedString(privKey)
-	if err != nil {
-		return "", err
-	}
-
-	return tokenStr, nil
+	t.token, err = token.SignedString(privKey)
+	return err
 }
 
 // InstallationToken represents a GitHub App installation token.
 type InstallationToken struct {
-	ApplicationToken
+	*ApplicationToken
 
-	InstallationID string
+	InstallationID int64
+	expiresAt      time.Time
+	token          string
 }
 
-// Generate generates a new GitHub App installation token.
-func (t *InstallationToken) Generate() (string, error) {
-	if t.InstallationID == "" {
+// Expired returns true if the token is expired.
+func (t *InstallationToken) Expired() bool {
+	return t.expiresAt.Before(time.Now())
+}
+
+// Token generates a new GitHub installation token.
+func (t *InstallationToken) Token() (string, error) {
+	if t.InstallationID == 0 {
 		return "", errors.New("InstallationID is required")
 	}
+	if t.ApplicationToken == nil {
+		return "", errors.New("ApplicationToken is required")
+	}
 
-	appToken, err := t.ApplicationToken.Generate()
+	if t.token == "" || t.Expired() {
+		if err := t.retrieve(); err != nil {
+			return "", err
+		}
+	}
+
+	return t.token, nil
+}
+
+func (t *InstallationToken) retrieve() error {
+	appToken, err := t.ApplicationToken.Token()
 	if err != nil {
-		return "", err
+		return err
 	}
 
 	client := &http.Client{}
 
-	reqURL := fmt.Sprintf("https://api.github.com/app/installations/%s/access_tokens", t.InstallationID)
+	reqURL := fmt.Sprintf("https://api.github.com/app/installations/%d/access_tokens", t.InstallationID)
 
-	req, err := http.NewRequest(http.MethodPost, reqURL, nil)
+	req, err := http.NewRequest(http.MethodPost, reqURL, http.NoBody)
 	if err != nil {
-		return "", err
+		return err
 	}
 
 	req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", appToken))
@@ -85,11 +115,11 @@ func (t *InstallationToken) Generate() (string, error) {
 
 	res, err := client.Do(req)
 	if err != nil {
-		return "", err
+		return err
 	}
 
 	if res.StatusCode != http.StatusCreated {
-		return "", fmt.Errorf("unexpected status code: %d", res.StatusCode)
+		return fmt.Errorf("unexpected status code: %d", res.StatusCode)
 	}
 
 	var resBody struct {
@@ -98,8 +128,11 @@ func (t *InstallationToken) Generate() (string, error) {
 	}
 
 	if err := json.NewDecoder(res.Body).Decode(&resBody); err != nil {
-		return "", err
+		return err
 	}
 
-	return resBody.Token, nil
+	t.token = resBody.Token
+	t.expiresAt = resBody.ExpiresAt
+
+	return nil
 }
