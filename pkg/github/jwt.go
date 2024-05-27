@@ -2,13 +2,22 @@
 package github
 
 import (
+	"bytes"
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"net/http"
+	"sync"
 	"time"
 
 	jwt "github.com/golang-jwt/jwt/v4"
+	"github.com/google/go-github/v62/github"
+)
+
+const (
+	acceptHeader = "application/vnd.github.v3+json"
 )
 
 // ApplicationToken represents a GitHub App token.
@@ -17,10 +26,12 @@ type ApplicationToken struct {
 	PrivateKey    []byte
 	expiresAt     time.Time
 	token         string
+
+	mu sync.Mutex
 }
 
-// Expired returns true if the token is expired.
-func (t *ApplicationToken) Expired() bool {
+// IsExpired returns true if the token is expired.
+func (t *ApplicationToken) IsExpired() bool {
 	return t.token == "" || t.expiresAt.Before(time.Now())
 }
 
@@ -33,7 +44,7 @@ func (t *ApplicationToken) Token() (string, error) {
 		return "", errors.New("PrivateKey is required")
 	}
 
-	if t.Expired() {
+	if t.IsExpired() {
 		if err := t.refresh(); err != nil {
 			return "", err
 		}
@@ -44,13 +55,15 @@ func (t *ApplicationToken) Token() (string, error) {
 }
 
 func (t *ApplicationToken) refresh() error {
-	now := time.Now()
+	t.mu.Lock()
+	defer t.mu.Unlock()
 
+	now := time.Now()
 	t.expiresAt = now.Add(10 * time.Minute)
 
 	token := jwt.NewWithClaims(jwt.SigningMethodRS256, jwt.MapClaims{
-		"iat": now.Unix(),
-		"exp": t.expiresAt.Unix(),
+		"iat": jwt.NewNumericDate(now),
+		"exp": jwt.NewNumericDate(t.expiresAt),
 		"iss": t.ApplicationID,
 	})
 
@@ -63,21 +76,31 @@ func (t *ApplicationToken) refresh() error {
 	return err
 }
 
+// InstallationAccessToken represents a GitHub App installation access token.
+type InstallationAccessToken struct {
+	Token        string                         `json:"token"`
+	ExpiresAt    time.Time                      `json:"expires_at"`
+	Permissions  github.InstallationPermissions `json:"permissions,omitempty"`
+	Repositories []github.Repository            `json:"repositories,omitempty"`
+}
+
 // InstallationToken represents a GitHub App installation token.
 type InstallationToken struct {
 	ApplicationToken *ApplicationToken
+	TokenOptions     *github.InstallationTokenOptions
 	InstallationID   int64
-	expiresAt        time.Time
-	token            string
+	accessToken      InstallationAccessToken
+
+	mu sync.Mutex
 }
 
-// Expired returns true if the token is expired.
-func (t *InstallationToken) Expired() bool {
-	return t.token == "" || t.expiresAt.Before(time.Now())
+// IsExpired returns true if the token is expired.
+func (t *InstallationToken) IsExpired() bool {
+	return t.accessToken.Token == "" || t.accessToken.ExpiresAt.Before(time.Now())
 }
 
 // Token generates a new GitHub installation token.
-func (t *InstallationToken) Token() (string, error) {
+func (t *InstallationToken) Token(ctx context.Context) (string, error) {
 	if t.InstallationID == 0 {
 		return "", errors.New("InstallationID is required")
 	}
@@ -85,16 +108,19 @@ func (t *InstallationToken) Token() (string, error) {
 		return "", errors.New("ApplicationToken is required")
 	}
 
-	if t.Expired() {
-		if err := t.refresh(); err != nil {
+	if t.IsExpired() {
+		if err := t.refresh(ctx); err != nil {
 			return "", err
 		}
 	}
 
-	return t.token, nil
+	return t.ApplicationToken.token, nil
 }
 
-func (t *InstallationToken) refresh() error {
+func (t *InstallationToken) refresh(ctx context.Context) error {
+	t.mu.Lock()
+	defer t.mu.Unlock()
+
 	appToken, err := t.ApplicationToken.Token()
 	if err != nil {
 		return err
@@ -102,15 +128,23 @@ func (t *InstallationToken) refresh() error {
 
 	client := &http.Client{}
 
-	reqURL := fmt.Sprintf("https://api.github.com/app/installations/%d/access_tokens", t.InstallationID)
+	var reqBody io.Reader
+	if t.TokenOptions != nil {
+		body, err := json.Marshal(t.TokenOptions)
+		if err != nil {
+			return err
+		}
+		reqBody = bytes.NewReader(body)
+	}
 
-	req, err := http.NewRequest(http.MethodPost, reqURL, http.NoBody)
+	reqURL := fmt.Sprintf("https://api.github.com/app/installations/%d/access_tokens", t.InstallationID)
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, reqURL, reqBody)
 	if err != nil {
 		return err
 	}
 
 	req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", appToken))
-	req.Header.Set("Accept", "application/vnd.github+json")
+	req.Header.Set("Accept", acceptHeader)
 
 	res, err := client.Do(req)
 	if err != nil {
@@ -121,17 +155,9 @@ func (t *InstallationToken) refresh() error {
 		return fmt.Errorf("unexpected status code: %d", res.StatusCode)
 	}
 
-	var resBody struct {
-		Token     string    `json:"token"`
-		ExpiresAt time.Time `json:"expires_at"`
-	}
-
-	if err := json.NewDecoder(res.Body).Decode(&resBody); err != nil {
+	if err := json.NewDecoder(res.Body).Decode(&t.accessToken); err != nil {
 		return err
 	}
-
-	t.token = resBody.Token
-	t.expiresAt = resBody.ExpiresAt
 
 	return nil
 }

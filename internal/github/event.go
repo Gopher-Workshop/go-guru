@@ -23,7 +23,7 @@ func (e *PullRequestOpenedEvent) Handle(ctx context.Context, event *github.PullR
 	authToken, err := (&githubpkg.InstallationToken{
 		ApplicationToken: e.AppToken,
 		InstallationID:   event.GetInstallation().GetID(),
-	}).Token()
+	}).Token(ctx)
 	if err != nil {
 		e.Logger.With(slog.Any("error", err)).Error("error generating installation token")
 		return err
