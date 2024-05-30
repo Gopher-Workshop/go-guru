@@ -10,7 +10,6 @@ import (
 	"os"
 
 	githubguru "github.com/Gopher-Workshop/guru/internal/github"
-	githubpkg "github.com/Gopher-Workshop/guru/pkg/github"
 	"github.com/cbrgm/githubevents/githubevents"
 	"github.com/google/go-github/v62/github"
 	echo "github.com/labstack/echo/v4"
@@ -39,16 +38,10 @@ func main() {
 
 	logger := slog.New(slog.NewJSONHandler(os.Stdout, nil))
 
-	githubAppToken, err := githubpkg.NewApplicationToken(applicationID, loadPrivateKey(appPrivateKeyPath))
-	if err != nil {
-		log.Fatalf("Error creating GitHub App token: %v", err)
-	}
-
 	whHandler := githubevents.New(webhookSecretKey)
 
 	openedHandler := &githubguru.PullRequestOpenedEvent{
-		Logger:   logger.WithGroup("github.PullRequestEvent.opened"),
-		AppToken: githubAppToken,
+		Logger: logger.WithGroup("github.PullRequestEvent.opened"),
 	}
 
 	whHandler.OnPullRequestEventOpened(

@@ -7,11 +7,14 @@ require (
 	github.com/golang-jwt/jwt/v4 v4.5.0
 	github.com/google/go-github/v62 v62.0.0
 	github.com/labstack/echo/v4 v4.12.0
+	github.com/migueleliasweb/go-github-mock v0.0.23
 )
 
 require (
 	github.com/golang-jwt/jwt v3.2.2+incompatible // indirect
+	github.com/google/go-github/v59 v59.0.0 // indirect
 	github.com/google/go-querystring v1.1.0 // indirect
+	github.com/gorilla/mux v1.8.0 // indirect
 	github.com/labstack/gommon v0.4.2 // indirect
 	github.com/mattn/go-colorable v0.1.13 // indirect
 	github.com/mattn/go-isatty v0.0.20 // indirect
