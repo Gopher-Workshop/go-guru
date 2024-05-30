@@ -8,6 +8,7 @@ import (
 
 	"github.com/google/go-github/v62/github"
 	"github.com/migueleliasweb/go-github-mock/src/mock"
+	"golang.org/x/oauth2"
 )
 
 func Test_installationTokenSource_Token(t *testing.T) {
@@ -47,13 +48,13 @@ func Test_installationTokenSource_Token(t *testing.T) {
 
 	type fields struct {
 		id   int64
-		src  TokenSource
+		src  oauth2.TokenSource
 		opts []InstallationTokenSourceOpt
 	}
 	tests := []struct {
 		name    string
 		fields  fields
-		want    *Token
+		want    *oauth2.Token
 		wantErr bool
 	}{
 		{
@@ -66,7 +67,7 @@ func Test_installationTokenSource_Token(t *testing.T) {
 					WithHTTPClient(mockedHTTPClient),
 				},
 			},
-			want: &Token{
+			want: &oauth2.Token{
 				AccessToken: "mocked-installation-token",
 				TokenType:   "Bearer",
 				Expiry:      expiration,
@@ -96,7 +97,7 @@ func TestNewApplicationTokenSource(t *testing.T) {
 	tests := []struct {
 		name    string
 		args    args
-		want    TokenSource
+		want    oauth2.TokenSource
 		wantErr bool
 	}{
 		{

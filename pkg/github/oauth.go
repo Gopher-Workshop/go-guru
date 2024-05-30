@@ -9,12 +9,8 @@ import (
 
 	jwt "github.com/golang-jwt/jwt/v4"
 	"github.com/google/go-github/v62/github"
+	"golang.org/x/oauth2"
 )
-
-// TokenSource is the interface that wraps the Token method.
-type TokenSource interface {
-	Token() (*Token, error)
-}
 
 // applicationTokenSource represents a GitHub App token.
 type applicationTokenSource struct {
@@ -24,7 +20,7 @@ type applicationTokenSource struct {
 
 // NewApplicationTokenSource creates a new GitHub App token source.
 // An application token is used to authenticate as a GitHub App.
-func NewApplicationTokenSource(appID string, privateKey []byte) (TokenSource, error) {
+func NewApplicationTokenSource(appID string, privateKey []byte) (oauth2.TokenSource, error) {
 	if appID == "" {
 		return nil, errors.New("applicationID is required")
 	}
@@ -43,7 +39,7 @@ func NewApplicationTokenSource(appID string, privateKey []byte) (TokenSource, er
 // Token creates a new GitHub App token.
 // The token is used to authenticate as a GitHub App.
 // Each token is valid for 10 minutes.
-func (t *applicationTokenSource) Token() (*Token, error) {
+func (t *applicationTokenSource) Token() (*oauth2.Token, error) {
 	now := time.Now()
 	expiresAt := now.Add(10 * time.Minute)
 
@@ -58,7 +54,7 @@ func (t *applicationTokenSource) Token() (*Token, error) {
 		return nil, err
 	}
 
-	return &Token{
+	return &oauth2.Token{
 		AccessToken: tokenString,
 		TokenType:   "Bearer",
 		Expiry:      expiresAt,
@@ -78,7 +74,7 @@ func WithInstallationTokenOptions(opts *github.InstallationTokenOptions) Install
 // WithHTTPClient sets the HTTP client for the GitHub App installation token source.
 func WithHTTPClient(c *http.Client) InstallationTokenSourceOpt {
 	return func(i *installationTokenSource) {
-		c.Transport = &Transport{
+		c.Transport = &oauth2.Transport{
 			Source: i.src,
 			Base:   c.Transport,
 		}
@@ -89,15 +85,15 @@ func WithHTTPClient(c *http.Client) InstallationTokenSourceOpt {
 // InstallationTokenSource represents a GitHub App installation token source.
 type installationTokenSource struct {
 	id     int64
-	src    TokenSource
+	src    oauth2.TokenSource
 	github *github.Client
 	opts   *github.InstallationTokenOptions
 }
 
 // NewInstallationTokenSource creates a new GitHub App installation token source.
-func NewInstallationTokenSource(id int64, src TokenSource, opts ...InstallationTokenSourceOpt) TokenSource {
+func NewInstallationTokenSource(id int64, src oauth2.TokenSource, opts ...InstallationTokenSourceOpt) oauth2.TokenSource {
 	client := &http.Client{
-		Transport: &Transport{
+		Transport: &oauth2.Transport{
 			Source: src,
 		},
 	}
@@ -117,7 +113,7 @@ func NewInstallationTokenSource(id int64, src TokenSource, opts ...InstallationT
 
 // Token creates a new GitHub App installation token.
 // The token is used to authenticate as a GitHub App installation.
-func (t *installationTokenSource) Token() (*Token, error) {
+func (t *installationTokenSource) Token() (*oauth2.Token, error) {
 	ctx := context.Background()
 
 	token, _, err := t.github.Apps.CreateInstallationToken(ctx, t.id, t.opts)
@@ -125,7 +121,7 @@ func (t *installationTokenSource) Token() (*Token, error) {
 		return nil, err
 	}
 
-	return &Token{
+	return &oauth2.Token{
 		AccessToken: token.GetToken(),
 		TokenType:   "Bearer",
 		Expiry:      token.GetExpiresAt().Time,

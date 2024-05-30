@@ -8,6 +8,7 @@ require (
 	github.com/google/go-github/v62 v62.0.0
 	github.com/labstack/echo/v4 v4.12.0
 	github.com/migueleliasweb/go-github-mock v0.0.23
+	golang.org/x/oauth2 v0.20.0
 )
 
 require (
