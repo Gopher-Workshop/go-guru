@@ -2,7 +2,6 @@
 package main
 
 import (
-	"context"
 	"fmt"
 	"log"
 	"log/slog"
@@ -10,10 +9,11 @@ import (
 	"os"
 
 	githubguru "github.com/Gopher-Workshop/guru/internal/github"
+	githubpkg "github.com/Gopher-Workshop/guru/pkg/github"
 	"github.com/cbrgm/githubevents/githubevents"
-	"github.com/google/go-github/v62/github"
 	echo "github.com/labstack/echo/v4"
 	"github.com/labstack/echo/v4/middleware"
+	"golang.org/x/oauth2"
 )
 
 var (
@@ -24,8 +24,6 @@ var (
 )
 
 func main() {
-	ctx := context.Background()
-
 	if port == "" {
 		port = "8080"
 	}
@@ -40,14 +38,21 @@ func main() {
 
 	whHandler := githubevents.New(webhookSecretKey)
 
-	openedHandler := &githubguru.PullRequestOpenedEvent{
-		Logger: logger.WithGroup("github.PullRequestEvent.opened"),
+	appTokenSrc, err := githubpkg.NewApplicationTokenSource(applicationID, loadPrivateKey(appPrivateKeyPath))
+	if err != nil {
+		log.Fatalf("Unable to create application token source: %v", err)
+	}
+
+	// Reuse the token source to avoid creating a new token for each request.
+	appTokenSrc = oauth2.ReuseTokenSource(nil, appTokenSrc)
+
+	welcomeEvent := &githubguru.PullRequestWelcomeEvent{
+		ApplicationTokenSource: appTokenSrc,
+		Logger:                 logger.WithGroup("github.PullRequestEventOpened.Welcome"),
 	}
 
 	whHandler.OnPullRequestEventOpened(
-		func(_, _ string, event *github.PullRequestEvent) error {
-			return openedHandler.Handle(ctx, event)
-		},
+		welcomeEvent.Handle,
 	)
 
 	e.POST("/github/event", func(c echo.Context) error {

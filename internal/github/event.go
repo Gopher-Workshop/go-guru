@@ -4,21 +4,34 @@ import (
 	"context"
 	"log/slog"
 
+	githubpkg "github.com/Gopher-Workshop/guru/pkg/github"
 	"github.com/google/go-github/v62/github"
+	"golang.org/x/oauth2"
 )
 
-// PullRequestOpenedEvent represents a pull request opened event.
-type PullRequestOpenedEvent struct {
-	Logger *slog.Logger
+// PullRequestWelcomeEvent is a handler for the pull request opened event.
+// It will create the first comment on the pull request with a welcome message.
+type PullRequestWelcomeEvent struct {
+	Logger                 *slog.Logger
+	ApplicationTokenSource oauth2.TokenSource
 }
 
 // Handle handles the pull request opened event.
-func (e *PullRequestOpenedEvent) Handle(ctx context.Context, event *github.PullRequestEvent) error {
-	// TODO(jferrl): maybe we should check if the event data is ok.
+func (e *PullRequestWelcomeEvent) Handle(deliveryID string, eventName string, event *github.PullRequestEvent) error {
+	ctx := context.Background()
 
-	e.Logger.Info("pull request opened", slog.String("repository", event.GetRepo().GetFullName()), slog.Int("PR", event.GetPullRequest().GetNumber()))
+	logger := e.Logger.With(
+		slog.String("delivery_id", deliveryID),
+		slog.String("event", eventName),
+		slog.String("repository", event.GetRepo().GetFullName()),
+		slog.Int("PR", event.GetPullRequest().GetNumber()),
+	)
 
-	githubClient := github.NewClient(nil)
+	logger.Info("Handling pull request welcome event")
+
+	ins := githubpkg.NewInstallationTokenSource(event.Installation.GetID(), e.ApplicationTokenSource)
+
+	githubClient := github.NewClient(oauth2.NewClient(ctx, ins))
 
 	owner := event.GetRepo().GetOwner().GetLogin()
 	repo := event.GetRepo().GetName()
