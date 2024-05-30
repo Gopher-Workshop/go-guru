@@ -41,7 +41,7 @@ func Test_installationTokenSource_Token(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	appSrc, err := NewApplicationTokenSource("app-id", privateKey)
+	appSrc, err := NewApplicationTokenSource("app-id", privateKey, WithApplicationTokenExpiration(5*time.Minute))
 	if err != nil {
 		t.Fatal(err)
 	}
