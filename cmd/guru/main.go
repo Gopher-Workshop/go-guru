@@ -7,6 +7,7 @@ import (
 	"log/slog"
 	"net/http"
 	"os"
+	"strconv"
 
 	githubguru "github.com/Gopher-Workshop/guru/internal/github"
 	"github.com/jferrl/go-githubauth"
@@ -32,6 +33,11 @@ func main() {
 		appPrivateKeyPath = "../../certs/private-key.pem"
 	}
 
+	appID, err := strconv.ParseInt(applicationID, 10, 64)
+	if err != nil {
+		log.Fatalf("Unable to parse application ID: %v", err)
+	}
+
 	e := echo.New()
 	e.Use(middleware.Recover())
 
@@ -39,7 +45,7 @@ func main() {
 
 	whHandler := githubevents.New(webhookSecretKey)
 
-	appTokenSrc, err := githubauth.NewApplicationTokenSource(applicationID, loadPrivateKey(appPrivateKeyPath))
+	appTokenSrc, err := githubauth.NewApplicationTokenSource(appID, loadPrivateKey(appPrivateKeyPath))
 	if err != nil {
 		log.Fatalf("Unable to create application token source: %v", err)
 	}
