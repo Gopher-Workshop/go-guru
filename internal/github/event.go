@@ -4,8 +4,8 @@ import (
 	"context"
 	"log/slog"
 
-	githubpkg "github.com/Gopher-Workshop/guru/pkg/github"
 	"github.com/google/go-github/v62/github"
+	"github.com/jferrl/go-githubauth"
 	"golang.org/x/oauth2"
 )
 
@@ -29,7 +29,7 @@ func (e *PullRequestWelcomeEvent) Handle(deliveryID string, eventName string, ev
 
 	logger.Info("Handling pull request welcome event")
 
-	ins := githubpkg.NewInstallationTokenSource(event.Installation.GetID(), e.ApplicationTokenSource)
+	ins := githubauth.NewInstallationTokenSource(event.Installation.GetID(), e.ApplicationTokenSource)
 
 	githubClient := github.NewClient(oauth2.NewClient(ctx, ins))
 

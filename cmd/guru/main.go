@@ -9,7 +9,8 @@ import (
 	"os"
 
 	githubguru "github.com/Gopher-Workshop/guru/internal/github"
-	githubpkg "github.com/Gopher-Workshop/guru/pkg/github"
+	"github.com/jferrl/go-githubauth"
+
 	"github.com/cbrgm/githubevents/githubevents"
 	echo "github.com/labstack/echo/v4"
 	"github.com/labstack/echo/v4/middleware"
@@ -38,7 +39,7 @@ func main() {
 
 	whHandler := githubevents.New(webhookSecretKey)
 
-	appTokenSrc, err := githubpkg.NewApplicationTokenSource(applicationID, loadPrivateKey(appPrivateKeyPath))
+	appTokenSrc, err := githubauth.NewApplicationTokenSource(applicationID, loadPrivateKey(appPrivateKeyPath))
 	if err != nil {
 		log.Fatalf("Unable to create application token source: %v", err)
 	}
