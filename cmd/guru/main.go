@@ -2,6 +2,7 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"log"
 	"log/slog"
@@ -26,6 +27,8 @@ var (
 )
 
 func main() {
+	ctx := context.Background()
+
 	if port == "" {
 		port = "8080"
 	}
@@ -38,10 +41,32 @@ func main() {
 		log.Fatalf("Unable to parse application ID: %v", err)
 	}
 
+	logger := slog.New(slog.NewJSONHandler(os.Stdout, nil))
+	slog.SetDefault(logger)
+
 	e := echo.New()
 	e.Use(middleware.Recover())
-
-	logger := slog.New(slog.NewJSONHandler(os.Stdout, nil))
+	e.Use(middleware.RequestLoggerWithConfig(middleware.RequestLoggerConfig{
+		LogStatus:   true,
+		LogURI:      true,
+		LogError:    true,
+		HandleError: true,
+		LogValuesFunc: func(c echo.Context, v middleware.RequestLoggerValues) error {
+			if v.Error == nil {
+				logger.LogAttrs(ctx, slog.LevelInfo, "REQUEST",
+					slog.String("uri", v.URI),
+					slog.Int("status", v.Status),
+				)
+			} else {
+				logger.LogAttrs(ctx, slog.LevelError, "REQUEST_ERROR",
+					slog.String("uri", v.URI),
+					slog.Int("status", v.Status),
+					slog.String("err", v.Error.Error()),
+				)
+			}
+			return nil
+		},
+	}))
 
 	whHandler := githubevents.New(webhookSecretKey)
 
