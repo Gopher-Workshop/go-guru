@@ -1,6 +1,8 @@
 package github
 
 import (
+	"context"
+
 	"github.com/google/go-github/v62/github"
 	"github.com/jferrl/go-githubauth"
 	"golang.org/x/oauth2"
@@ -34,7 +36,7 @@ func (i *Installations) Client(id int64) *github.Client {
 
 	cli := github.NewClient(
 		oauth2.NewClient(
-			nil,
+			context.Background(),
 			githubauth.NewInstallationTokenSource(id, i.src),
 		),
 	)
