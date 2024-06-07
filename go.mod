@@ -5,6 +5,7 @@ go 1.22.3
 require (
 	github.com/cbrgm/githubevents v1.15.0
 	github.com/google/go-github/v62 v62.0.0
+	github.com/google/uuid v1.6.0
 	github.com/jferrl/go-githubauth v1.0.2
 	github.com/labstack/echo/v4 v4.12.0
 	golang.org/x/oauth2 v0.20.0

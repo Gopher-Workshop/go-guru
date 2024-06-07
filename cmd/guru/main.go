@@ -11,6 +11,7 @@ import (
 	"strconv"
 
 	githubguru "github.com/Gopher-Workshop/guru/internal/github"
+	"github.com/google/uuid"
 	"github.com/jferrl/go-githubauth"
 
 	"github.com/cbrgm/githubevents/githubevents"
@@ -65,6 +66,11 @@ func main() {
 				)
 			}
 			return nil
+		},
+	}))
+	e.Use(middleware.RequestIDWithConfig(middleware.RequestIDConfig{
+		Generator: func() string {
+			return uuid.NewString()
 		},
 	}))
 
