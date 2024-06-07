@@ -14,8 +14,7 @@ import (
 // The token source is used to create a new GitHub client.
 // It provides the necessary application authentication for the GitHub API.
 type Installations struct {
-	src oauth2.TokenSource
-
+	src           oauth2.TokenSource
 	installations map[int64]*github.Client
 
 	mu sync.Mutex
