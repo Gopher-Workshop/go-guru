@@ -2,6 +2,7 @@ package github
 
 import (
 	"context"
+	"sync"
 
 	"github.com/google/go-github/v62/github"
 	"github.com/jferrl/go-githubauth"
@@ -16,6 +17,8 @@ type Installations struct {
 	src oauth2.TokenSource
 
 	installations map[int64]*github.Client
+
+	mu sync.Mutex
 }
 
 // NewInstallations creates a new cache repository for GitHub App installations.
@@ -30,6 +33,9 @@ func NewInstallations(src oauth2.TokenSource) *Installations {
 // If the client is not already cached, it will be created and stored.
 // The client is created using the provided token source.
 func (i *Installations) Client(id int64) *github.Client {
+	i.mu.Lock()
+	defer i.mu.Unlock()
+
 	if client, ok := i.installations[id]; ok {
 		return client
 	}
