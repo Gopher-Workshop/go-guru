@@ -5,15 +5,18 @@ import (
 	"log/slog"
 
 	"github.com/google/go-github/v62/github"
-	"github.com/jferrl/go-githubauth"
-	"golang.org/x/oauth2"
 )
+
+// InstallationClientRetriever is an interface for retrieving a GitHub client for a given installation ID.
+type InstallationClientRetriever interface {
+	Client(id int64) *github.Client
+}
 
 // PullRequestWelcomeEvent is a handler for the pull request opened event.
 // It will create the first comment on the pull request with a welcome message.
 type PullRequestWelcomeEvent struct {
-	Logger                 *slog.Logger
-	ApplicationTokenSource oauth2.TokenSource
+	Logger                      *slog.Logger
+	InstallationClientRetriever InstallationClientRetriever
 }
 
 // Handle handles the pull request opened event.
@@ -29,9 +32,7 @@ func (e *PullRequestWelcomeEvent) Handle(deliveryID string, eventName string, ev
 
 	logger.Info("Handling pull request welcome event")
 
-	ins := githubauth.NewInstallationTokenSource(event.Installation.GetID(), e.ApplicationTokenSource)
-
-	githubClient := github.NewClient(oauth2.NewClient(ctx, ins))
+	githubClient := e.InstallationClientRetriever.Client(event.GetInstallation().GetID())
 
 	owner := event.GetRepo().GetOwner().GetLogin()
 	repo := event.GetRepo().GetName()

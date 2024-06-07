@@ -85,9 +85,11 @@ func main() {
 	// Reuse the token source to avoid creating a new token for each request.
 	appTokenSrc = oauth2.ReuseTokenSource(nil, appTokenSrc)
 
+	installations := githubguru.NewInstallations(appTokenSrc)
+
 	welcomeEvent := &githubguru.PullRequestWelcomeEvent{
-		ApplicationTokenSource: appTokenSrc,
-		Logger:                 logger.WithGroup("github.PullRequestEventOpened.Welcome"),
+		InstallationClientRetriever: installations,
+		Logger:                      logger.WithGroup("github.PullRequestEventOpened.Welcome"),
 	}
 
 	whHandler.OnPullRequestEventOpened(
