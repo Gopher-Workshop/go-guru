@@ -73,6 +73,7 @@ func main() {
 			return uuid.NewString()
 		},
 	}))
+	e.Use(middleware.Secure())
 
 	whHandler := githubevents.New(webhookSecretKey)
 
