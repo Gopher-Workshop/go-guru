@@ -104,7 +104,7 @@ func main() {
 
 		if err := whHandler.HandleEventRequest(c.Request()); err != nil {
 			eventLogger.With(slog.Any("error", err)).Error("Error handling event request")
-			return c.String(http.StatusInternalServerError, fmt.Sprintf("Error handling event request: %v", err))
+			return c.String(http.StatusBadRequest, fmt.Sprintf("Error handling event request: %v", err))
 		}
 
 		return c.String(http.StatusOK, "")
