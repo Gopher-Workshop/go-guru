@@ -9,6 +9,7 @@ require (
 	github.com/jferrl/go-githubauth v1.0.2
 	github.com/labstack/echo/v4 v4.12.0
 	github.com/migueleliasweb/go-github-mock v0.0.23
+	github.com/sashabaranov/go-openai v1.26.0
 	golang.org/x/oauth2 v0.20.0
 )
 
