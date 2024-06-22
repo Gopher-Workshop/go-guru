@@ -13,6 +13,7 @@ import (
 	githubguru "github.com/Gopher-Workshop/guru/internal/github"
 	"github.com/google/uuid"
 	"github.com/jferrl/go-githubauth"
+	"github.com/sashabaranov/go-openai"
 
 	"github.com/cbrgm/githubevents/githubevents"
 	echo "github.com/labstack/echo/v4"
@@ -25,6 +26,9 @@ var (
 	applicationID     = os.Getenv("GITHUB_APP_ID")
 	appPrivateKeyPath = os.Getenv("GITHUB_APP_PRIVATE_KEY_PATH")
 	webhookSecretKey  = os.Getenv("GITHUB_WEBHOOK_SECRET")
+	openaiToken       = os.Getenv("OPENAI_API_KEY")
+	openaiOrgID       = os.Getenv("OPENAI_ORG_ID")
+	openaiAssistantID = os.Getenv("OPENAI_ASSISTANT_ID")
 )
 
 func main() {
@@ -35,11 +39,6 @@ func main() {
 	}
 	if appPrivateKeyPath == "" {
 		appPrivateKeyPath = "../../certs/private-key.pem"
-	}
-
-	appID, err := strconv.ParseInt(applicationID, 10, 64)
-	if err != nil {
-		log.Fatalf("Unable to parse application ID: %v", err)
 	}
 
 	logger := slog.New(slog.NewJSONHandler(os.Stdout, nil))
@@ -75,6 +74,16 @@ func main() {
 	}))
 	e.Use(middleware.Secure())
 
+	openaiConf := openai.DefaultConfig(openaiToken)
+	openaiConf.OrgID = openaiOrgID
+
+	aiCli := openai.NewClientWithConfig(openaiConf)
+
+	appID, err := strconv.ParseInt(applicationID, 10, 64)
+	if err != nil {
+		e.Logger.Fatalf("Unable to parse application ID: %v", err)
+	}
+
 	whHandler := githubevents.New(webhookSecretKey)
 
 	appTokenSrc, err := githubauth.NewApplicationTokenSource(appID, loadPrivateKey(appPrivateKeyPath))
@@ -92,8 +101,16 @@ func main() {
 		Logger:                      logger.WithGroup("github.PullRequestEventOpened.Welcome"),
 	}
 
+	firstReviewHandler := &githubguru.PullRequestFirstReviewEvent{
+		AssistantID:                 openaiAssistantID,
+		InstallationClientRetriever: installations,
+		OpenAI:                      aiCli,
+		Logger:                      logger.WithGroup("github.PullRequestEventOpened.FirstReview"),
+	}
+
 	whHandler.OnPullRequestEventOpened(
 		welcomeEvent.Handle,
+		firstReviewHandler.Handle,
 	)
 
 	e.POST("/github/event", func(c echo.Context) error {
